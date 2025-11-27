@@ -1,0 +1,96 @@
+// import { Button } from "./components/ui/button"
+// import { Avatar, AvatarFallback } from "./components/ui/avatar"
+// import EcsiteBrandSVG from "./assets/Ecsite_Brand"
+
+// export function Header() {
+//   return (
+//     <div className="bg-white border-b border-gray-200 ">
+//       <div className="flex gap-[10px] py-4">
+//         <div className="flex items-center">
+//           {/* Logo */}
+//           {/* <div className="flex items-center space-x-2">
+//             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+//               <div className="w-4 h-4 bg-white rounded-sm"></div>
+//             </div>
+//             <span className="text-2xl font-bold text-gray-900">ecsite</span>
+//           </div> */}
+//           <div className="w-[752px]">
+//           <EcsiteBrandSVG />
+//           </div>
+//           <div className="flex items-center justify-between w-[582px]">
+//             <div>
+//                 {/* Navigation */}
+//                 <div className="flex items-center">
+//                     <Button variant="ghost" className="text-blue-600 bg-blue-50 hover:bg-blue-100">
+//                     Home
+//                     </Button>
+//                     <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
+//                     History
+//                     </Button>
+//                     <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
+//                     Saved Analysis
+//                     </Button>
+//                 </div>
+//           </div>
+//           <div>
+
+//                 {/* User Profile */}
+//                 <div className="flex items-center">
+//                     <span className="text-sm text-gray-700">Connie Reilly</span>
+//                     <Avatar className="w-8 h-8 bg-teal-600">
+//                     <AvatarFallback className="bg-teal-600 text-white text-sm font-medium">CR</AvatarFallback>
+//                     </Avatar>
+//                 </div>
+//           </div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   )
+// }
+
+
+import { Button } from "./components/ui/button"
+import { Avatar, AvatarFallback } from "./components/ui/avatar"
+import EcsiteBrandSVG from "./assets/Ecsite_Brand"
+
+export function Header() {
+  return (
+    <header className="bg-white border-b border-gray-200 w-full">
+      <div className="flex items-center justify-between py-5 px-[48px] gap-[10px] w-full">
+        
+        {/* Left: Logo (60%) */}
+        <div className="flex items-center">
+          <EcsiteBrandSVG className="h-10 w-auto" />
+        </div>
+
+        {/* Right: Nav + Profile (40%) */}
+        <div className="flex items-center justify-between gap-[120px]">
+          {/* Navigation */}
+          <nav className="flex items-center gap-2">
+            <Button variant="ghost" className="text-blue-600 bg-blue-50 hover:bg-blue-100">
+              Home
+            </Button>
+            <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
+              History
+            </Button>
+            <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
+              Saved Analysis
+            </Button>
+          </nav>
+
+          {/* User Profile */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-700">Connie Reilly</span>
+            <Avatar className="w-8 h-8 bg-teal-600">
+              <AvatarFallback className="bg-teal-600 text-white text-sm font-medium">
+                CR
+              </AvatarFallback>
+            </Avatar>
+          </div>
+        </div>
+
+      </div>
+    </header>
+  )
+}

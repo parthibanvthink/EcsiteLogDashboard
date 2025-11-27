@@ -1,0 +1,150 @@
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from typing import List, Dict
+from Crypto.Cipher import AES
+from hashlib import md5
+import base64
+import re
+
+app = FastAPI()
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+PASS_PHRASE = "ecsite"
+
+# in-memory storage for logs
+logs_storage: List[dict] = []
+
+
+# ----------------- AES Decrypt -----------------
+def cryptojs_decrypt(passphrase: str, ciphertext: str) -> str:
+    ct = base64.b64decode(ciphertext)
+    if ct[:8] != b"Salted__":
+        raise ValueError("Not a valid salted CryptoJS ciphertext")
+    salt = ct[8:16]
+    ciphertext_bytes = ct[16:]
+
+    d = d_i = b""
+    while len(d) < 32 + 16:  # key=32, iv=16
+        d_i = md5(d_i + passphrase.encode() + salt).digest()
+        d += d_i
+    key = d[:32]
+    iv = d[32:48]
+
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    decrypted = cipher.decrypt(ciphertext_bytes)
+    pad_len = decrypted[-1]
+    return decrypted[:-pad_len].decode("utf-8", errors="ignore")
+
+
+# ----------------- Upload & Read Logs -----------------
+@app.post("/read-log/")
+async def read_log(file: UploadFile = File(...)):
+    """
+    Upload a file, decrypt each line, and store in memory.
+    IDs reset for each DEVICE ID.
+    """
+    global logs_storage
+    content = await file.read()
+    lines = content.decode("utf-8").splitlines()
+
+    logs_storage = []  # reset old logs
+    device_counters: Dict[str, int] = {}
+    current_device_id = None
+    global_counter = 1  # unique ID across all logs
+
+    for line in lines:
+        if not line.strip():
+            continue
+
+        try:
+            decrypted = cryptojs_decrypt(PASS_PHRASE, line.strip())
+        except Exception as e:
+            decrypted = f"ERROR: {str(e)}"
+
+        # Detect DEVICE ID
+        match = re.search(r"DEVICE ID\s+([A-Z0-9\-]+)", decrypted)
+        if match:
+            current_device_id = match.group(1)
+            if current_device_id not in device_counters:
+                device_counters[current_device_id] = 1
+            continue
+
+        # Only log if device is known
+        if current_device_id:
+            log_entry = {
+                # "id": global_counter,  # unique across all logs
+                # "device_log_id": device_counters[current_device_id],  # per-device counter
+                "device_id": current_device_id,
+                "message": decrypted,
+                "raw": line.strip(),
+            }
+            logs_storage.append(log_entry)
+
+            # Increment counters
+            device_counters[current_device_id] += 1
+            global_counter += 1
+
+    return {"message": "File processed successfully", "total_logs": len(logs_storage)}
+
+
+# ----------------- Get All Logs -----------------
+@app.get("/logs")
+async def get_logs(device_id: str = None):
+    """
+    Get all logs (optionally filter by device_id).
+    """
+    if device_id:
+        filtered_logs = [log for log in logs_storage if log["device_id"] == device_id]
+        return {"logs": filtered_logs}
+    return {"logs": logs_storage}
+    
+
+# ----------------- Get Paginated Logs -----------------
+@app.get("/logs/paginated")
+async def get_paginated_logs(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=100),
+    device_id: str = None,
+):
+    """
+    Get logs with pagination (optionally filter by device_id).
+    """
+    if device_id:
+        filtered_logs = [log for log in logs_storage if log["device_id"] == device_id]
+    else:
+        filtered_logs = logs_storage
+
+    total = len(filtered_logs)
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_logs = filtered_logs[start:end]
+
+    return {
+        "metadata": {
+            "total_logs": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": (total + per_page - 1) // per_page,
+        },
+        "logs": paginated_logs,
+    }
+
+
+# ----------------- Get Single Log -----------------
+@app.get("/logs/{log_id}")
+async def get_log(log_id: int):
+    """
+    Get details of a single log entry by its unique ID.
+    """
+    log = next((log for log in logs_storage if log["id"] == log_id), None)
+    if not log:
+        raise HTTPException(status_code=404, detail="Log not found")
+    return log

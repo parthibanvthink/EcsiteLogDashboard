@@ -1,0 +1,208 @@
+import { useState } from "react"
+import { Button } from "./components/ui/button"
+import { Card, CardContent } from "./components/ui/card"
+import { Badge } from "./components/ui/badge"
+import { ArrowLeft, Save, FileText, Clock, AlertTriangle, Shield } from "lucide-react"
+import BackArrowSVG from "./assets/BackArrow"
+import SaveAnalysisSVG from "./assets/SaveAnalysis"
+
+// Mock stats - you can calculate these from real data later
+const mockStats = {
+  totalEvents: 70,
+  avgSessionDuration: "2 Hours",
+  totalCrashes: 89,
+  crashFreeSessions: 5,
+}
+
+const getLevelBadgeColor = (level) => {
+  switch (level?.toUpperCase()) {
+    case "ERROR":
+      return "bg-red-100 text-red-800 border-red-200"
+    case "WARNING":
+      return "bg-yellow-100 text-yellow-800 border-yellow-200"
+    case "INFO":
+      return "bg-blue-100 text-blue-800 border-blue-200"
+    case "DEBUG":
+      return "bg-gray-100 text-gray-800 border-gray-200"
+    default:
+      return "bg-gray-100 text-gray-800 border-gray-200"
+  }
+}
+
+// Function to extract log level from message
+const extractLogLevel = (message) => {
+  const upperMessage = message?.toUpperCase() || ""
+  if (upperMessage.includes("ERROR") || upperMessage.includes("EXCEPTION")) return "ERROR"
+  if (upperMessage.includes("WARNING") || upperMessage.includes("WARN")) return "WARNING"
+  if (upperMessage.includes("INFO")) return "INFO"
+  if (upperMessage.includes("DEBUG")) return "DEBUG"
+  return "INFO" // default
+}
+
+// Function to extract timestamp from message
+const extractTimestamp = (message) => {
+  // Try to extract timestamp from the message
+  const timestampMatch = message?.match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/)
+  return timestampMatch ? timestampMatch[0] : new Date().toLocaleString()
+}
+
+// Function to extract event description
+const extractEvent = (message) => {
+  // Remove timestamp and device info to get the main event
+  return message?.replace(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\s*/, "") || message || "Unknown event"
+}
+
+export function LogInsights({ onGoBack, logsData = [] }) {
+  const [selectedDevice, setSelectedDevice] = useState("all")
+  
+  // Get unique device IDs
+  const deviceIds = [...new Set(logsData.map(log => log.device_id))]
+  
+  // Filter logs by device
+  const filteredLogs = selectedDevice === "all" 
+    ? logsData 
+    : logsData.filter(log => log.device_id === selectedDevice)
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <button onClick={onGoBack} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <BackArrowSVG />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Log Analysis Results</h1>
+            <p className="text-gray-600">Insights from your uploaded log files</p>
+          </div>
+        </div>
+
+        <Button className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2">
+          <SaveAnalysisSVG />
+          Save Analysis
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Events</p>
+                <p className="text-2xl font-bold text-gray-900">{filteredLogs.length}</p>
+              </div>
+              <FileText className="h-8 w-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Device Count</p>
+                <p className="text-2xl font-bold text-gray-900">{deviceIds.length}</p>
+              </div>
+              <Shield className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Error Events</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {filteredLogs.filter(log => extractLogLevel(log.message) === "ERROR").length}
+                </p>
+              </div>
+              <AlertTriangle className="h-8 w-8 text-red-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Warning Events</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {filteredLogs.filter(log => extractLogLevel(log.message) === "WARNING").length}
+                </p>
+              </div>
+              <Clock className="h-8 w-8 text-yellow-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Device Filter */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center space-x-4 mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Filter by Device</h3>
+            <select
+              value={selectedDevice}
+              onChange={(e) => setSelectedDevice(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              <option value="all">All Devices</option>
+              {deviceIds.map(deviceId => (
+                <option key={deviceId} value={deviceId}>{deviceId}</option>
+              ))}
+            </select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Logs Table */}
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Log Entries</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Time
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Level
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Event
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Device ID
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredLogs.map((log, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900 font-mono">
+                      {extractTimestamp(log.message)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge className={`text-xs ${getLevelBadgeColor(extractLogLevel(log.message))}`}>
+                        {extractLogLevel(log.message)}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">
+                      {extractEvent(log.message)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 font-mono">
+                      {log.device_id}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
